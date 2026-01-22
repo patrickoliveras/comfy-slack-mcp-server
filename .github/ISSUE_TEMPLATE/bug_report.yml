@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a problem with slack-mcp-server
+title: '[Bug]: '
+labels: ['bug']
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect to happen? What actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Include tool calls, inputs, and any relevant logs/errors.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Node version, OS, token mode (bot/user), and Slack plan/retention if relevant.
+      placeholder: |
+        Node:
+        OS:
+        Token mode:
+        Slack plan/retention:
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, links, related issues, etc.
