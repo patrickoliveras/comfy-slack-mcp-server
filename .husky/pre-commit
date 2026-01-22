@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/h"
+
+# Keep commits clean and consistent. This runs only on staged files.
+npx lint-staged

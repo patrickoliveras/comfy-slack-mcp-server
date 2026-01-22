@@ -1,0 +1,6 @@
+dist
+coverage
+node_modules
+.npm-cache
+.cursor
+package-lock.json
