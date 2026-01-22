@@ -5,19 +5,29 @@ export default {
   roots: ['<rootDir>/tests'],
   testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
-      useESM: true
-    }]
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        useESM: true,
+      },
+    ],
   },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1'
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
-  collectCoverageFrom: [
-    'index.ts',
-    '!**/*.d.ts'
-  ],
+  collectCoverageFrom: ['index.ts', 'src/**/*.ts', '!**/*.d.ts'],
+  // Keep a floor so coverage doesn't silently regress.
+  // Now that code lives under src/, we can hold a higher bar.
+  coverageThreshold: {
+    global: {
+      statements: 60,
+      branches: 45,
+      functions: 50,
+      lines: 60,
+    },
+  },
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   clearMocks: true,
-  restoreMocks: true
+  restoreMocks: true,
 };

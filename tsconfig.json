@@ -10,10 +10,10 @@
     "resolveJsonModule": true,
     "outDir": "./dist",
     "rootDir": ".",
-    "isolatedModules": true
+    "isolatedModules": true,
+    "declaration": true,
+    "declarationMap": true
   },
-  "include": [
-    "./**/*.ts"
-  ],
-  "exclude": ["node_modules"]
+  "include": ["index.ts", "src/**/*.ts"],
+  "exclude": ["node_modules", "tests", "dist"]
 }
