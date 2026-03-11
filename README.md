@@ -97,20 +97,34 @@ A Model Context Protocol (MCP) server for interacting with Slack workspaces. Thi
      - `user_id` (string): The user's ID
    - Returns: Detailed user profile information
 
-10. **slack_list_canvases**
+10. **slack_get_file_info**
+    - Get metadata about a Slack file by its file ID
+    - Required inputs:
+      - `file_id` (string): The Slack file ID (starts with 'F')
+    - Returns: File name, type, mimetype, size, permalink, download URL availability, and external file info
+
+11. **slack_download_file**
+    - Download a Slack-hosted file to the local filesystem
+    - Required inputs:
+      - `file_id` (string): The Slack file ID (starts with 'F')
+      - `download_dir` (string): Absolute path to the local directory where the file should be saved
+    - Returns: Local path, name, mimetype, and size on success; external URL for remote files
+    - Note: External/remote files cannot be downloaded directly — their external_url is returned instead
+
+12. **slack_list_canvases**
     - List canvases accessible to the authenticated token
     - Optional inputs:
       - `limit` (number, default: 100): Maximum canvases to return
       - `cursor` (string): Pagination cursor for next page
     - Returns: List of canvases with IDs, titles, and metadata
 
-11. **slack_read_canvas**
+13. **slack_read_canvas**
     - Read the full content of a canvas (returns HTML)
     - Required inputs:
       - `canvas_id` (string): The canvas/file ID (starts with 'F')
     - Returns: Canvas content as HTML, plus metadata (title, created, updated, permalink)
 
-12. **slack_edit_canvas**
+14. **slack_edit_canvas**
     - Edit a canvas by inserting, replacing, or deleting content
     - Required inputs:
       - `canvas_id` (string): The canvas/file ID
@@ -120,7 +134,7 @@ A Model Context Protocol (MCP) server for interacting with Slack workspaces. Thi
       - `section_id` (string): Target section for replace/delete operations
     - Note: Uses Slack-specific markdown. Mentions: `![](#C123)` for channels, `![](@U123)` for users
 
-13. **slack_create_canvas**
+15. **slack_create_canvas**
     - Create a new standalone canvas
     - Required inputs:
       - `title` (string): Title of the new canvas
@@ -231,6 +245,7 @@ Get your Team ID (starts with a `T`) by following [this guidance](https://slack.
   - Get thread replies
   - List users
   - Get user profiles
+  - File operations (inspect metadata, download to local filesystem)
   - Canvas operations (list/read/edit/create)
   - Search (user token mode only)
 - **Operational hygiene**:
