@@ -1,3 +1,6 @@
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
 import { SlackRateLimitError, SlackTransportError } from '../errors.js';
 import { createLogger, type Logger } from '../logger.js';
 import { retry, sleep, type RetryOptions } from '../retry.js';
@@ -8,6 +11,7 @@ import type {
   SlackChannelsListResponse,
   SlackConversationsHistoryResponse,
   SlackConversationsRepliesResponse,
+  SlackFile,
   SlackFilesInfoResponse,
   SlackFilesListResponse,
   SlackReactionsAddResponse,
@@ -311,6 +315,116 @@ export class SlackClient {
       { headers: this.headers },
       { idempotent: true },
     );
+  }
+
+  // File methods
+
+  async getFileInfo(fileId: string): Promise<SlackFilesInfoResponse> {
+    const params = new URLSearchParams({ file: fileId });
+    return this.requestJson<SlackFilesInfoResponse>(
+      `https://slack.com/api/files.info?${params}`,
+      { headers: this.headers },
+      { idempotent: true },
+    );
+  }
+
+  private chooseDownloadUrl(file: SlackFile): string | null {
+    return file.url_private_download || file.url_private || null;
+  }
+
+  /**
+   * Download a Slack-hosted file to disk.
+   * Returns metadata about the downloaded file including the local path.
+   */
+  async downloadFileToPath(
+    file: SlackFile,
+    downloadPath: string,
+  ): Promise<{
+    skipped: boolean;
+    reason?: string;
+    fileId?: string;
+    name?: string;
+    mimetype?: string;
+    size?: number;
+    path?: string;
+    permalink?: string;
+    external_url?: string;
+  }> {
+    if (!file || !file.id) throw new Error('No file object provided');
+
+    if (file.is_external) {
+      return {
+        skipped: true,
+        reason: 'remote_or_external_file',
+        fileId: file.id,
+        name: file.name || file.title || 'external-file',
+        external_url: file.external_url || undefined,
+      };
+    }
+
+    const url = this.chooseDownloadUrl(file);
+    if (!url) {
+      return {
+        skipped: true,
+        reason: 'no_download_url',
+        fileId: file.id,
+        name: file.name || file.title || 'unknown',
+      };
+    }
+
+    await fs.mkdir(path.dirname(downloadPath), { recursive: true });
+
+    const response = await retry(
+      async () => {
+        const res = await fetch(url, {
+          headers: { Authorization: this.headers.Authorization },
+        });
+
+        if (res.status === 429) {
+          const retryAfterSeconds = parseRetryAfterSeconds(res.headers);
+          throw new SlackRateLimitError('Slack file download rate limited', retryAfterSeconds, {
+            url,
+            status: res.status,
+          });
+        }
+
+        if (!res.ok) {
+          throw new SlackTransportError(
+            `File download failed: ${res.status} ${res.statusText}`,
+            res.status,
+            { url },
+          );
+        }
+
+        return res;
+      },
+      {
+        ...this.retryOptions,
+        shouldRetry: (err) =>
+          err instanceof SlackRateLimitError ||
+          (err instanceof SlackTransportError && (err.status === undefined || err.status >= 500)) ||
+          err instanceof TypeError,
+        getDelayMs: (err, _attempt, defaultBackoffMs) => {
+          if (err instanceof SlackRateLimitError && err.retryAfterSeconds !== undefined) {
+            return err.retryAfterSeconds * 1000;
+          }
+          return defaultBackoffMs;
+        },
+      },
+    );
+
+    const arrayBuffer = await response.arrayBuffer();
+    await fs.writeFile(downloadPath, Buffer.from(arrayBuffer));
+
+    return {
+      skipped: false,
+      fileId: file.id,
+      name: file.name || file.title || 'unknown',
+      mimetype: file.mimetype || undefined,
+      size: arrayBuffer.byteLength,
+      path: downloadPath,
+      permalink: file.permalink || undefined,
+    };
   }
 
   // Canvas methods

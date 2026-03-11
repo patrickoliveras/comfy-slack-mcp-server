@@ -1,3 +1,5 @@
+import * as path from 'path';
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
@@ -354,6 +356,83 @@ export function createSlackServer(
     },
     withToolErrorHandling(logger, 'slack_get_user_profile', async ({ user_id }) => {
       return slackClient.getUserProfile(user_id);
+    }),
+  );
+
+  // File tools
+
+  server.registerTool(
+    'slack_get_file_info',
+    {
+      title: 'Get Slack File Info',
+      description:
+        'Get metadata about a Slack file by its file ID (starts with F). Returns name, type, size, permalink, download URLs, and other properties. Use this to inspect a file before downloading it.',
+      inputSchema: {
+        file_id: z
+          .string()
+          .describe("The Slack file ID (starts with 'F', e.g., 'F0123ABCDEF')"),
+      },
+    },
+    withToolErrorHandling(logger, 'slack_get_file_info', async ({ file_id }) => {
+      const response = await slackClient.getFileInfo(file_id);
+      if (!response.ok) return response;
+
+      const file = response.file;
+      return {
+        ok: true,
+        file: {
+          id: file?.id,
+          name: file?.name,
+          title: file?.title,
+          filetype: file?.filetype,
+          mimetype: file?.mimetype,
+          size: file?.size,
+          is_external: file?.is_external,
+          external_url: file?.external_url,
+          permalink: file?.permalink,
+          url_private: file?.url_private ? '(available)' : null,
+          url_private_download: file?.url_private_download ? '(available)' : null,
+          user: file?.user,
+          created: file?.created ? new Date(file.created * 1000).toISOString() : null,
+          updated: file?.updated ? new Date(file.updated * 1000).toISOString() : null,
+        },
+      };
+    }),
+  );
+
+  server.registerTool(
+    'slack_download_file',
+    {
+      title: 'Download Slack File',
+      description:
+        "Download a Slack-hosted file to the local filesystem. Requires the file ID (starts with 'F') and a local directory path. The file will be saved with its original name. External/remote files cannot be downloaded directly — their external_url is returned instead.",
+      inputSchema: {
+        file_id: z
+          .string()
+          .describe("The Slack file ID (starts with 'F', e.g., 'F0123ABCDEF')"),
+        download_dir: z
+          .string()
+          .describe(
+            'Absolute path to the local directory where the file should be saved (e.g., /tmp/slack-downloads)',
+          ),
+      },
+    },
+    withToolErrorHandling(logger, 'slack_download_file', async ({ file_id, download_dir }) => {
+      const info = await slackClient.getFileInfo(file_id);
+      if (!info.ok) {
+        return { ok: false, error: info.error, message: `Failed to get file info for ${file_id}` };
+      }
+
+      const file = info.file;
+      if (!file) {
+        return { ok: false, error: 'file_not_found', message: `No file returned for ${file_id}` };
+      }
+
+      const fileName = file.name || file.title || `${file.id}.bin`;
+      const destPath = path.join(download_dir, fileName);
+
+      const result = await slackClient.downloadFileToPath(file, destPath);
+      return { ok: !result.skipped, ...result };
     }),
   );
 

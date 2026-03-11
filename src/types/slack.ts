@@ -41,12 +41,16 @@ export type SlackFile = {
   name?: string;
   title?: string;
   filetype?: string;
+  mimetype?: string;
   size?: number;
   created?: number;
   updated?: number;
   user?: string;
   permalink?: string;
   url_private?: string;
+  url_private_download?: string;
+  is_external?: boolean;
+  external_url?: string;
   [key: string]: unknown;
 };
 
